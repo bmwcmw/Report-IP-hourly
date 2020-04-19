@@ -4,6 +4,7 @@
 import socket
 import time
 import smtplib
+import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import re
@@ -35,11 +36,13 @@ def sendEmail(msghtml):
     msgRoot["Subject"] = subject
     msgText = MIMEText(msghtml, "html", "utf-8")
     msgRoot.attach(msgText)
-    smtp = smtplib.SMTP()
-    smtp.connect(smtpserver)
-    smtp.login(username, password)
-    smtp.sendmail(sender, receiver, msgRoot.as_string())
-    smtp.quit()
+    with smtplib.SMTP(smtpserver, 587) as smtp:
+        smtp.connect(smtpserver, 587) # 2FA
+        smtp.ehlo()
+        smtp.starttls(context=ssl.create_default_context())
+        smtp.login(username, password)
+        smtp.sendmail(sender, receiver, msgRoot.as_string())
+        smtp.quit()
 
 
 def check_network():
@@ -66,21 +69,17 @@ class Getmyip:
 
     def getip(self):
         try:
-            myip = self.visit("http://1111.ip138.com/ic.asp")
+            myip = self.visit("http://ip.chinaz.com/")
         except Exception as e:
             print(e)
             try:
-                myip = self.visit("http://ip.chinaz.com/")
-            except Exception as e:
-                print(e)
-                try:
-                    myip = self.visit("http://www.whereismyip.com/")
-                    # if you want to add more,use the format "except try"
-                    # make sure the most useful link be the first
-                except:
-                    print("Fail to get the Network ip.")
-                    print("Get the LAN ip.")
-                    myip = get_lan_ip()
+                myip = self.visit("http://www.whereismyip.com/")
+                # if you want to add more,use the format "except try"
+                # make sure the most useful link be the first
+            except:
+                print("Fail to get the Network ip.")
+                print("Get the LAN ip.")
+                myip = get_lan_ip()
         return myip
 
     def visit(self, url):
@@ -107,7 +106,7 @@ if __name__ == "__main__":
     last_ip = ip_file.read()
     ip_file.close()
     if last_ip == emailip:
-        print("IP not change.")
+        print("IP unchanged: {}".format(last_ip))
     else:
         print("IP changed. New ip: {}".format(emailip))
         ip_file = open(file_path, "w")
